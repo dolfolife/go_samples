@@ -50,10 +50,11 @@ type LogEvent struct {
 	Metadata string
 }
 
-// Representation of the system. I was too lazy to have PrintFirst, PrintSecond, and PrintThird
+// Representation of the system. Use to generate printFirst, printSecond, and printThird
 func mockSubsystem(name string) LogEvent {
 	random := time.Duration(rand.Intn(2000))
 	time.Sleep(random * time.Millisecond)
+	// add failure test 10% of the time
 	if random >= 1800 {
 		panic("SYSTEM PANIC")
 	}
