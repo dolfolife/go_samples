@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -70,20 +71,37 @@ func main() {
 	fmt.Printf("took %v\n", time.Since(start))
 }
 
-func fetchAndMergeUrlData(urls []string, done <-chan interface{}) <-chan Result {
-	result := make(chan Result, len(urls))
-
+func fetchUrlData(url string) <-chan Result {
+	result := make(chan Result)
 	go func() {
 		defer close(result)
+		data, err := download(url)
+		result <- Result{Data: data, Error: err}
+	}()
 
-		for _, url := range urls {
-			data, error := download(url)
+	return result
+}
+func fetchAndMergeUrlData(urls []string, done <-chan interface{}) <-chan Result {
+	result := make(chan Result, len(urls))
+	var wg sync.WaitGroup
+
+	wg.Add(len(urls))
+
+	for _, url := range urls {
+		go func(url string) {
+			urlChan := fetchUrlData(url)
+			defer wg.Done()
 			select {
 			case <-done:
 				return
-			case result <- Result{Data: data, Error: error}:
+			case result <- <-urlChan:
 			}
-		}
+		}(url)
+	}
+
+	go func() {
+		wg.Wait()
+		close(result)
 	}()
 
 	return result
